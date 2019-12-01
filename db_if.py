@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 # https://qiita.com/mas9612/items/5423c09efd613518a521
 # MySQLdbのインポート
-import MySQLdb
+import pymysql
 import os
+import pandas as pd
 
 def start_connect():
     # データベースへの接続とカーソルの生成
-    connection = MySQLdb.connect(
+    connection = pymysql.connect(
         host=os.environ['DB_HOST'],
         user=os.environ['DB_USER'],
         passwd=os.environ['DB_PASS'],
-        db=os.environ['DB_NAME']
+        db=os.environ['DB_NAME'])
     cursor = connection.cursor()
     return cursor, connection
 
@@ -25,7 +26,7 @@ def end_connect(connection):
 def make_profile_tbl(cursor):
     try:
         tbl_name = 'PROFILE'
-        sql = 'create table '+ tbl_name +' (USER_ID int, SEX varchar(32), AGE int, HEIGHT float)'
+        sql = 'create table '+ tbl_name +' (USER_ID varchar(64), SEX varchar(32), AGE int, HEIGHT float)'
         cursor.execute(sql)
         connection.commit()
         print('---PROFILE テーブルを作成---')
@@ -47,7 +48,7 @@ def reg_record_profile_tbl(cursor, user_id, col, record):
         sql = 'insert into ' +  tbl_name + ' (USER_ID, '+col+') values (%s, %s)'
         cursor.execute(sql, (user_id, record))  # 挿入
     else: # すでにUSER_IDが存在する場合
-        print('USER_ID:'+str(user_id)+' is already exist.')
+        print('USER_ID:'+ user_id + ' is already exist.')
         sql = 'update ' +  tbl_name + ' set ' + col + '=%s where USER_ID=%s'
         cursor.execute(sql, (record, user_id))  # 更新
 
@@ -83,19 +84,23 @@ def reg_record_histrical_tbl(cursor, user_id, date, col, record):
         pass
     if cursor.fetchone()[0]==0:
         sql = 'insert into ' +  tbl_name + ' (DATE, '+col+') values (%s, %s)'
-        cursor.execute(sql, (date, record))  # 挿入
+        cursor.execute(sql, ((date,), record))  # 挿入
     else: # すでにDATEが存在する場合
-        print('DATE:'+str(date)+' is already exist.')
+        print('DATE:'+str((date,))+' is already exist.')
         sql = 'update ' +  tbl_name + ' set ' + col + '=%s where DATE=%s'
-        cursor.execute(sql, (record, date))  # 更新
+        cursor.execute(sql, (record, (date,)))  # 更新
 
 # HISTRICAL_"USER_ID"テーブルのレコードの取得
 def get_record_histrical_tbl(cursor, user_id):
     tbl_name = 'HISTRICAL_' + user_id
     sql = 'select * from ' + tbl_name
     cursor.execute(sql)
+    df = pd.DataFrame( columns=['DATE', 'WEIGHT', 'CAL_BARNED', 'CAL_INTAKE'] )
     for row in cursor.fetchall():
+        record = pd.Series([ row[0], row[1], row[2], row[3] ], index=df.columns)
+        df = df.append(record, ignore_index=True)
         print('DATE:', row[0], ', WEIGHT:', row[1], ', CAL_BARNED:', row[2], ', CAL_INTAKE:', row[3]) 
+    return df
 
 # テーブル一覧の取得
 def list_tbl(cursor, db_name):

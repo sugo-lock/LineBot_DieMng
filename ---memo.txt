@@ -1,0 +1,5 @@
+必要なモジュール
+pandas
+matplotlib
+boto3
+pymysql

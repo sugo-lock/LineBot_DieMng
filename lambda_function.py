@@ -2,9 +2,12 @@
 import json
 import datetime 
 import re
+import pandas as pd
+import matplotlib.pyplot as plt
 
 import line_if
 import db_if
+import s3_if
 
 
 def lambda_handler(event, context):
@@ -33,57 +36,76 @@ def lambda_handler(event, context):
 
     # グラフを表示
     elif(msg == "graph"):
-        line_if.push_msg(user_id, "graph is comming soon.")
-    
+        cursor, connection = db_if.start_connect()
+        df = db_if.get_record_histrical_tbl(cursor, user_id)
+        db_if.end_connect(connection)
+#        df = df.fillna(method='ffill') # 欠損値 0埋め
+        if len(df) > 10:
+            df = df.iloc[len(df)-10:len(df)]
+        fig, ax = plt.subplots(figsize=(5,len(df)))
+        ax.axis('off')
+        ax.axis('tight')
+        ax.table(cellText=df.values,
+                colLabels=df.columns,
+                loc='center',
+                bbox=[0,0,1,1])
+        plt.savefig('./tmp/table.png')
+        FIG_DIR = './tmp'
+        BUCKET_NAME = 'health-maneger-sugo-lock'
+        DIR = 'DietManager'
+        url_list = upload(FIG_DIR, BUCKET_NAME, DIR)
+        line_if.push_fig(user_id, fig_url)
+        #line_if.push_msg(user_id, "graph is comming soon.")
+        
     # 身長入力
     elif("@h" in msg):
-        cursor, connection = start_connect()
-        make_profile_tbl(cursor)
-        reg_record_profile_tbl(cursor, user_id, col='HEIGHT', record=re.sub("\\D", "", msg))
-        end_connect(connection)
+        cursor, connection = db_if.start_connect()
+        db_if.make_profile_tbl(cursor)
+        db_if.reg_record_profile_tbl(cursor, user_id, col='HEIGHT', record=msg.strip('@h'))
+        db_if.end_connect(connection)
         line_if.push_msg(user_id, msg + " Added DataBase.")
     
     # 年齢入力
     elif("@a" in msg):
-        cursor, connection = start_connect()
-        make_profile_tbl(cursor)
-        reg_record_profile_tbl(cursor, user_id, col='AGE', record=re.sub("\\D", "", msg))
-        end_connect(connection)
+        cursor, connection = db_if.start_connect()
+        db_if.make_profile_tbl(cursor)
+        db_if.reg_record_profile_tbl(cursor, user_id, col='AGE', record=msg.strip('@a'))
+        db_if.end_connect(connection)
         line_if.push_msg(user_id, msg + " Added DataBase.")
 
     # 性別入力
     elif("@s" in msg):
-        cursor, connection = start_connect()
-        make_profile_tbl(cursor)
-        reg_record_profile_tbl(cursor, user_id, col='SEX', record=re.sub("\\D", "", msg))
-        end_connect(connection)
+        cursor, connection = db_if.start_connect()
+        db_if.make_profile_tbl(cursor)
+        db_if.reg_record_profile_tbl(cursor, user_id, col='SEX', record=msg.strip('@s'))
+        db_if.end_connect(connection)
         line_if.push_msg(user_id, msg + " Added DataBase.")
 
     # 体重入力
     elif("@w" in msg):
-        cursor, connection = start_connect()
-        make_histrical_tbl(cursor, user_id)
-    　　date = datetime.date.today()
-        reg_record_histrical_tbl(cursor, user_id, date, col='WEIGHT', record=re.sub("\\D", "", msg))
-        end_connect(connection)
+        cursor, connection = db_if.start_connect()
+        db_if.make_histrical_tbl(cursor, user_id)
+        date = datetime.date.today()
+        db_if.reg_record_histrical_tbl(cursor, user_id, date, col='WEIGHT', record=msg.strip('@w'))
+        db_if.end_connect(connection)
         line_if.push_msg(user_id, msg + " Added DataBase.")
 
     # 消費カロリー入力
     elif("@b" in msg):
-        cursor, connection = start_connect()
-        make_histrical_tbl(cursor, user_id)
-    　　date = datetime.date.today()
-        reg_record_histrical_tbl(cursor, user_id, date, col='CAL_BARNED', record=re.sub("\\D", "", msg))
-        end_connect(connection)
+        cursor, connection = db_if.start_connect()
+        db_if.make_histrical_tbl(cursor, user_id)
+        date = datetime.date.today()
+        db_if.reg_record_histrical_tbl(cursor, user_id, date, col='CAL_BARNED', record=msg.strip('@b'))
+        db_if.end_connect(connection)
         line_if.push_msg(user_id, msg + " Added DataBase.")
 
     # 摂取カロリー入力
     elif("@i" in msg):
-        cursor, connection = start_connect()
-        make_histrical_tbl(cursor, user_id)
-    　　date = datetime.date.today()
-        reg_record_histrical_tbl(cursor, user_id, date, col='CAL_INTAKE', record=re.sub("\\D", "", msg))
-        end_connect(connection)
+        cursor, connection = db_if.start_connect()
+        db_if.make_histrical_tbl(cursor, user_id)
+        date = datetime.date.today()
+        db_if.reg_record_histrical_tbl(cursor, user_id, date, col='CAL_INTAKE', record=msg.strip('@i'))
+        db_if.end_connect(connection)
         line_if.push_msg(user_id, msg + " Added DataBase.")
     
     else:
